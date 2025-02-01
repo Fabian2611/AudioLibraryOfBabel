@@ -7,12 +7,15 @@
     <title>Audio Library of Babel</title>
 </head>
 <body>
-    <p>Audio Library of Babel</p>
+    <h1>Audio Library of Babel</h1>
+    <p>Input must be exactly 1 second and have 1 or 2 channels. Bitrate should be 44.1kHz or 48kHz, although others should work too.</p>
     <input type="file" id="fileinput" accept=".wav">
+    <p>Your audio is at page:</p>
     <pre id="idoutput">0</pre>
     <hr>
-    <textarea id="idinput" placeholder="ID"></textarea>
-    <button onclick="play()">Play</button>
+    <textarea id="idinput" placeholder="Page"></textarea>
+    <button onclick="play()">Find Audio</button>
     <button onclick="randomplay()">Random</button>
+    <button id="download" onclick="download()" style="display: none; background: #4A90E2; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Download WAV</button>
 </body>
 </html>

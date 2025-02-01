@@ -1,6 +1,62 @@
 const BASE = 65536;
 const BITRATE = 48000;  // Set the desired bitrate here
 
+function audioBufferToWavFile(audioBuffer) {
+    const numChannels = audioBuffer.numberOfChannels;
+    const length = audioBuffer.length * numChannels * 2; // 2 bytes per sample
+    const buffer = new ArrayBuffer(44 + length);
+    const view = new DataView(buffer);
+    
+    // Write WAV header
+    // "RIFF" chunk descriptor
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + length, true);
+    writeString(view, 8, 'WAVE');
+    
+    // "fmt " sub-chunk
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true); // subchunk1 size
+    view.setUint16(20, 1, true); // audio format (PCM)
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, audioBuffer.sampleRate, true);
+    view.setUint32(28, audioBuffer.sampleRate * numChannels * 2, true); // byte rate
+    view.setUint16(32, numChannels * 2, true); // block align
+    view.setUint16(34, 16, true); // bits per sample
+    
+    // "data" sub-chunk
+    writeString(view, 36, 'data');
+    view.setUint32(40, length, true);
+    
+    // Write audio data
+    let offset = 44;
+    for (let i = 0; i < audioBuffer.length; i++) {
+        for (let channel = 0; channel < numChannels; channel++) {
+            const sample = Math.max(-1, Math.min(1, audioBuffer.getChannelData(channel)[i]));
+            view.setInt16(offset, sample * 32767, true);
+            offset += 2;
+        }
+    }
+    
+    return buffer;
+}
+
+function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+    }
+}
+
+function downloadWav(audioBuffer, filename = 'audio.wav') {
+    const wavBuffer = audioBufferToWavFile(audioBuffer);
+    const blob = new Blob([wavBuffer], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
 function playWav(buffer) {
     // If we receive an AudioBuffer, we can play it directly
     if (buffer instanceof AudioBuffer) {
@@ -105,7 +161,7 @@ async function wavToId(buffer) {
             uid = uid * BigInt(BASE) + BigInt(normalizedSamples[i] + 32768);
         }
 
-        return uid;
+        return { id: uid, audioBuffer: finalAudioBuffer };
     } catch (error) {
         throw new Error("Error processing WAV file: " + error.message);
     }
@@ -139,11 +195,21 @@ function play() {
     const id = BigInt(document.getElementById("idinput").value);
     const buffer = idToWav(id);
     playWav(buffer);
+    // Enable download of the generated audio
+    document.getElementById("download").style.display = "block";
+    // Store the buffer for later download
+    window.lastGeneratedBuffer = buffer;
 }
 
 function randomplay() {
     const id = BigInt(Math.floor(Math.random() * BASE)) ** BigInt(BITRATE);
     document.getElementById("idinput").value = id.toString();
+}
+
+function download() {
+    if (window.lastGeneratedBuffer) {
+        downloadWav(window.lastGeneratedBuffer, 'generated_audio.wav');
+    }
 }
 
 addEventListener("DOMContentLoaded", () => {
@@ -156,11 +222,16 @@ addEventListener("DOMContentLoaded", () => {
             reader.onload = async (e) => {
                 const arrayBuffer = e.target.result;
                 try {
-                    const id = await wavToId(arrayBuffer);
-                    document.getElementById("idoutput").textContent = id.toString();
+                    const result = await wavToId(arrayBuffer);
+                    document.getElementById("idoutput").textContent = result.id.toString();
+                    // Store the original audio buffer for download
+                    window.lastGeneratedBuffer = result.audioBuffer;
+                    // Show download button
+                    document.getElementById("download").style.display = "block";
                 } catch (error) {
                     console.error(error);
                     document.getElementById("idoutput").textContent = "Error: " + error.message;
+                    document.getElementById("download").style.display = "none";
                 }
             };
             reader.readAsArrayBuffer(file);
