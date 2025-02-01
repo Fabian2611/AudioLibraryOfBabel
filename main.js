@@ -195,15 +195,16 @@ function play() {
     const id = BigInt(document.getElementById("idinput").value);
     const buffer = idToWav(id);
     playWav(buffer);
-    // Enable download of the generated audio
-    document.getElementById("download").style.display = "block";
     // Store the buffer for later download
     window.lastGeneratedBuffer = buffer;
+    // Enable download of the generated audio
+    document.getElementById("download").style.display = "block";
 }
 
 function randomplay() {
     const id = BigInt(Math.floor(Math.random() * BASE)) ** BigInt(BITRATE);
     document.getElementById("idinput").value = id.toString();
+    play();
 }
 
 function download() {
